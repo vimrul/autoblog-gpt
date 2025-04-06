@@ -1,12 +1,52 @@
-body {
+:root {
+    --bg: #ffffff;
+    --text: #111111;
+    --nav-bg: #f2f2f2;
+  }
+  
+  .dark {
+    --bg: #111111;
+    --text: #f2f2f2;
+    --nav-bg: #222222;
+  }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
     font-family: Arial, sans-serif;
     padding: 2rem;
-    background: #f7f7f7;
-}
-.container {
+    transition: background 0.3s, color 0.3s;
+  }
+  
+  nav {
+    background: var(--nav-bg);
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+  }
+  
+  a, button {
+    margin-right: 10px;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    background: #0099ff;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  button:hover, a:hover {
+    background: #0077cc;
+  }
+  
+  .container {
     max-width: 800px;
     margin: auto;
-    background: white;
     padding: 2rem;
+    background: var(--bg);
+    border-radius: 8px;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
+  }
+  
