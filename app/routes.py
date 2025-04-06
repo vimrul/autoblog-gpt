@@ -145,3 +145,37 @@ def settings():
 
     return render_template("settings.html", settings=settings)
 
+from datetime import datetime
+
+@main.route("/schedule", methods=["GET", "POST"])
+def schedule_post():
+    categories = fetch_categories()
+    if request.method == "POST":
+        topic = request.form.get("topic")
+        model = request.form.get("model", "gpt-4-1106-preview")
+        category_ids = request.form.getlist("categories")
+        scheduled_time = request.form.get("scheduled_time")
+
+        result = generate_article(topic, model)
+        if not result:
+            flash("Failed to generate article", "error")
+            return redirect(url_for("main.schedule_post"))
+
+        post = ScheduledPost(
+            topic=topic,
+            seo_title=result["seo_title"],
+            meta_description=result["meta_description"],
+            focus_keyword=result["focus_keyword"],
+            content=result["article"],
+            tags=result["tags"],
+            image_prompt=result["image_prompt"],
+            category_ids=",".join(category_ids),
+            scheduled_time=datetime.fromisoformat(scheduled_time)
+        )
+        db.session.add(post)
+        db.session.commit()
+
+        flash("✅ Post scheduled successfully!", "success")
+        return redirect(url_for("main.post_history"))
+
+    return render_template("schedule.html", categories=categories)
