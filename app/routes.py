@@ -117,3 +117,31 @@ def view_article(topic):
                 return render_template("preview.html", data=data, rendered_article=html)
     flash("Article not found.", "error")
     return redirect(url_for("main.post_history"))
+
+@main.route("/settings", methods=["GET", "POST"])
+def settings():
+    env_path = ".env"
+    settings = {}
+
+    # Load current settings
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                if line.strip() and not line.startswith("#"):
+                    key, value = line.strip().split("=", 1)
+                    settings[key] = value
+
+    if request.method == "POST":
+        updated_keys = ["OPENAI_API_KEY", "OPENAI_MODEL", "WP_SITE_URL", "WP_USERNAME", "WP_APP_PASSWORD"]
+        new_settings = {k: request.form.get(k, "") for k in updated_keys}
+
+        # Rewrite .env file
+        with open(env_path, "w") as f:
+            for k, v in {**settings, **new_settings}.items():
+                f.write(f"{k}={v.strip()}\n")
+
+        flash("✅ Settings updated. Restart the app for changes to take effect.", "success")
+        return redirect(url_for("main.settings"))
+
+    return render_template("settings.html", settings=settings)
+
