@@ -1,0 +1,6 @@
+<form action="{{ url_for('main.post_to_wp') }}" method="post">
+    <input type="hidden" name="preview_id" value="{{ data.preview_id }}">
+    <input type="hidden" name="category_ids" value="{{ data.category_ids }}">
+    <button type="submit">✅ Post to WordPress</button>
+  </form>
+  
