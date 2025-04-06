@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Schedule Post{% endblock %}
+{% block content %}
+<h2>🕒 Schedule Post</h2>
+<form method="POST">
+  <label>Topic:</label><br>
+  <input type="text" name="topic" required><br><br>
+
+  <label>Model:</label>
+  <select name="model">
+    <option value="gpt-4-1106-preview">GPT-4 Turbo</option>
+    <option value="gpt-4">GPT-4</option>
+    <option value="gpt-3.5-turbo">GPT-3.5</option>
+  </select><br><br>
+
+  <label>Categories:</label><br>
+  {% for cat in categories %}
+    <input type="checkbox" name="categories" value="{{ cat.id }}">
+    <label>{{ cat.name }}</label><br>
+  {% endfor %}<br>
+
+  <label>Schedule Time (UTC):</label><br>
+  <input type="datetime-local" name="scheduled_time" required><br><br>
+
+  <button type="submit">📅 Schedule</button>
+</form>
+{% endblock %}
