@@ -96,3 +96,8 @@ def post_to_wp():
 
     flash(f"✅ Successfully posted to WordPress (Post ID: {wp_post_id})", "success")
     return redirect(url_for("main.home"))
+
+@main.route("/history")
+def post_history():
+    posts = Post.query.order_by(Post.created_at.desc()).all()
+    return render_template("post_history.html", posts=posts)
