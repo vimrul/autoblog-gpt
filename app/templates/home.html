@@ -16,3 +16,8 @@
   <button type="submit">Generate Article</button>
 </form>
 {% endblock %}
+<h3>Select Category</h3>
+{% for cat in categories %}
+  <input type="checkbox" name="categories" value="{{ cat.id }}">
+  <label>{{ cat.name }}</label><br>
+{% endfor %}
