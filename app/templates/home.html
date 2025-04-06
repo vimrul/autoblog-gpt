@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Generate New Article{% endblock %}
+
 {% block content %}
 <h1>AutoBlog GPT</h1>
 <form method="post">
@@ -13,11 +14,13 @@
     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
   </select><br><br>
 
+  <h3>Select Categories</h3>
+  {% for cat in categories %}
+    <input type="checkbox" name="categories" value="{{ cat.id }}">
+    <label>{{ cat.name }}</label><br>
+  {% endfor %}
+
+  <br>
   <button type="submit">Generate Article</button>
 </form>
 {% endblock %}
-<h3>Select Category</h3>
-{% for cat in categories %}
-  <input type="checkbox" name="categories" value="{{ cat.id }}">
-  <label>{{ cat.name }}</label><br>
-{% endfor %}
