@@ -24,3 +24,9 @@ def create_app():
     app.register_blueprint(main)
 
     return app
+@app.context_processor
+
+def inject_globals():
+    return {
+        'WP_URL': os.getenv("WP_SITE_URL")
+    }
