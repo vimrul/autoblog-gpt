@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h2>⚙️ Settings</h2>
+<form method="POST">
+  <label>OpenAI API Key:</label><br>
+  <input type="password" name="OPENAI_API_KEY" value="{{ settings.OPENAI_API_KEY or '' }}" style="width: 100%;"><br><br>
+
+  <label>Default Model:</label><br>
+  <select name="OPENAI_MODEL">
+    <option value="gpt-4-1106-preview" {% if settings.OPENAI_MODEL == 'gpt-4-1106-preview' %}selected{% endif %}>GPT-4 Turbo</option>
+    <option value="gpt-4" {% if settings.OPENAI_MODEL == 'gpt-4' %}selected{% endif %}>GPT-4 (Legacy)</option>
+    <option value="gpt-3.5-turbo" {% if settings.OPENAI_MODEL == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo</option>
+  </select><br><br>
+
+  <label>WordPress Site URL:</label><br>
+  <input type="text" name="WP_SITE_URL" value="{{ settings.WP_SITE_URL or '' }}" style="width: 100%;"><br><br>
+
+  <label>WP Username:</label><br>
+  <input type="text" name="WP_USERNAME" value="{{ settings.WP_USERNAME or '' }}" style="width: 100%;"><br><br>
+
+  <label>WP App Password:</label><br>
+  <input type="password" name="WP_APP_PASSWORD" value="{{ settings.WP_APP_PASSWORD or '' }}" style="width: 100%;"><br><br>
+
+  <button type="submit">💾 Save Settings</button>
+</form>
+{% endblock %}
