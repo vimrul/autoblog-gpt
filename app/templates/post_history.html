@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Post History{% endblock %}
+
+{% block content %}
+<h2>📝 Published Articles</h2>
+<table border="1" cellpadding="8" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Focus Keyword</th>
+      <th>Created</th>
+      <th>WP Link</th>
+      <th>Article</th>
+      <th>Image</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for post in posts %}
+    <tr>
+      <td>{{ post.seo_title or post.topic }}</td>
+      <td>{{ post.focus_keyword }}</td>
+      <td>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>
+        {% if post.wp_post_id %}
+          <a href="{{ WP_URL }}/?p={{ post.wp_post_id }}" target="_blank">🔗 View</a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td>
+        {% if post.topic %}
+          <a href="{{ url_for('main.view_article', topic=post.topic) }}" target="_blank">📄</a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td>
+        {% if post.image_webp %}
+          <a href="/{{ post.image_webp }}" target="_blank">🖼</a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
