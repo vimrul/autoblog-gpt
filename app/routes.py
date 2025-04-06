@@ -46,3 +46,47 @@ def preview():
         json.dump(session_data, f)
 
     return render_template("preview.html", data=session_data)
+import os
+from flask import send_file
+from app.wordpress_poster import post_article_to_wp
+
+@main.route("/post_to_wp", methods=["POST"])
+def post_to_wp():
+    preview_id = request.form.get("preview_id")
+    category_ids = request.form.get("category_ids", "")
+    category_ids = [int(cid) for cid in category_ids.split(",") if cid.strip().isdigit()]
+
+    file_path = f"storage/articles/{preview_id}.json"
+    if not os.path.exists(file_path):
+        flash("Preview data not found", "error")
+        return redirect(url_for("main.home"))
+
+    with open(file_path, "r") as f:
+        data = json.load(f)
+
+    # Attach categories to data
+    data["category_ids"] = category_ids
+
+    # Post to WP
+    wp_post_id = post_article_to_wp(data)
+    if not wp_post_id:
+        flash("Failed to post to WordPress", "error")
+        return redirect(url_for("main.preview", topic=data['topic'], model=data['model'], categories=",".join(map(str, category_ids))))
+
+    # Save to DB
+    post = Post(
+        topic=data["topic"],
+        seo_title=data["seo_title"],
+        meta_description=data["meta_description"],
+        focus_keyword=data["focus_keyword"],
+        content=data["article"],
+        tags=data["tags"],
+        image_path=data.get("image_path", ""),
+        image_webp=data.get("image_webp", ""),
+        wp_post_id=str(wp_post_id)
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    flash(f"✅ Successfully posted to WordPress (Post ID: {wp_post_id})", "success")
+    return redirect(url_for("main.home"))
