@@ -1,4 +1,13 @@
-from app.wordpress_poster import fetch_categories
+import os
+import uuid
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from app.openai_handler import generate_article
+from app.wordpress_poster import fetch_categories, post_article_to_wp
+from app.models import Post
+from app.db import db
+
+main = Blueprint("main", __name__)
 
 @main.route("/", methods=["GET", "POST"])
 def home():
@@ -6,8 +15,8 @@ def home():
 
     if request.method == "POST":
         topic = request.form.get("topic")
-        model = request.form.get("model")
-        selected_categories = request.form.getlist("categories")
+        model = request.form.get("model", "gpt-4-1106-preview")
+        selected_categories = request.form.getlist("categories") or []
 
         if not topic:
             flash("Topic is required", "error")
@@ -19,7 +28,6 @@ def home():
 
     return render_template("home.html", categories=categories)
 
-import json
 
 @main.route("/preview")
 def preview():
@@ -46,9 +54,7 @@ def preview():
         json.dump(session_data, f)
 
     return render_template("preview.html", data=session_data)
-import os
-from flask import send_file
-from app.wordpress_poster import post_article_to_wp
+
 
 @main.route("/post_to_wp", methods=["POST"])
 def post_to_wp():
