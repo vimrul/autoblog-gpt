@@ -6,9 +6,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <nav>
-    <a href="{{ url_for('main.home') }}">Home</a> |
-    <a href="{{ url_for('main.post_history') }}">Post History</a>
-</nav>
+    <a href="{{ url_for('main.home') }}">🏠 Home</a> |
+    <a href="{{ url_for('main.post_history') }}">📜 History</a> |
+    <a href="{{ url_for('main.settings') }}">⚙️ Settings</a>
+  </nav>
 <body>
     <div class="container">
         {% block content %}{% endblock %}
