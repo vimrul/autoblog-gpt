@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Generate New Article{% endblock %}
+{% block content %}
+<h1>AutoBlog GPT</h1>
+<form method="post">
+  <label for="topic">Enter your topic:</label><br>
+  <input type="text" id="topic" name="topic" style="width: 100%;" required><br><br>
+
+  <label for="model">Select Model:</label>
+  <select name="model" id="model">
+    <option value="gpt-4-1106-preview">GPT-4 Turbo</option>
+    <option value="gpt-4">GPT-4 (Legacy)</option>
+    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+  </select><br><br>
+
+  <button type="submit">Generate Article</button>
+</form>
+{% endblock %}
