@@ -1,5 +1,8 @@
 import openai
 import os
+import json
+
+# Set API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def generate_article(topic, model="gpt-4-1106-preview"):
@@ -30,20 +33,26 @@ Respond in JSON format like:
 "image_prompt": "...",
 "article": "..."
 }}
-    """
+"""
 
     try:
         response = openai.ChatCompletion.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful content assistant."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt.strip()}
             ],
             temperature=0.7
         )
+
         content = response.choices[0].message['content']
-        import json
-        return json.loads(content)
+        print("[DEBUG] Raw GPT content:\n", content)  # ✅ Helpful for testing
+
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] JSON decode failed: {e}")
+            return None
 
     except Exception as e:
         print(f"[ERROR] GPT generation failed: {e}")
