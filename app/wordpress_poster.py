@@ -1,20 +1,71 @@
 import os
-import requests
-from requests.auth import HTTPBasicAuth
-from PIL import Image
-import openai
 import io
+import base64
 import time
+import openai
+import requests
+from PIL import Image
+from requests.auth import HTTPBasicAuth
 
-# Load credentials
+# Load WordPress credentials
 WP_URL = os.getenv("WP_SITE_URL")
 WP_USER = os.getenv("WP_USERNAME")
 WP_PASS = os.getenv("WP_APP_PASSWORD")
 AUTH = HTTPBasicAuth(WP_USER, WP_PASS)
 
-# --- STEP 1: Upload Image to WordPress ---
+# ==========================
+# Fetch Available Categories
+# ==========================
+def fetch_categories():
+    try:
+        response = requests.get(
+            f"{WP_URL}/wp-json/wp/v2/categories?per_page=100",
+            auth=AUTH
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print("[ERROR] Fetching categories:", response.text)
+            return []
+    except Exception as e:
+        print(f"[ERROR] Category fetch failed: {e}")
+        return []
+
+# ====================
+# Resolve Tags to IDs
+# ====================
+def resolve_tags(tag_names):
+    tag_ids = []
+
+    for tag in tag_names:
+        tag = tag.strip()
+        if not tag:
+            continue
+
+        try:
+            check = requests.get(
+                f"{WP_URL}/wp-json/wp/v2/tags?search={tag}",
+                auth=AUTH
+            )
+            if check.status_code == 200 and check.json():
+                tag_ids.append(check.json()[0]['id'])  # tag exists
+            else:
+                create = requests.post(
+                    f"{WP_URL}/wp-json/wp/v2/tags",
+                    json={"name": tag},
+                    auth=AUTH
+                )
+                if create.status_code in [200, 201]:
+                    tag_ids.append(create.json()['id'])
+        except Exception as e:
+            print(f"[ERROR] Tag resolution failed for '{tag}': {e}")
+
+    return tag_ids
+
+# ===========================
+# Generate + Upload Image
+# ===========================
 def generate_and_upload_image(prompt, preview_id):
-    # Generate image from OpenAI
     try:
         response = openai.Image.create(
             model="dall-e-3",
@@ -35,8 +86,12 @@ def generate_and_upload_image(prompt, preview_id):
 
     # Convert to WebP
     image_webp = f"storage/images/{preview_id}.webp"
-    with Image.open(image_path) as img:
-        img.save(image_webp, "webp")
+    try:
+        with Image.open(image_path) as img:
+            img.save(image_webp, "webp")
+    except Exception as e:
+        print(f"[ERROR] WebP conversion failed: {e}")
+        image_webp = None
 
     # Upload PNG to WordPress
     try:
@@ -59,6 +114,10 @@ def generate_and_upload_image(prompt, preview_id):
     except Exception as e:
         print(f"[ERROR] Upload failed: {e}")
         return None, image_webp
+
+# ===============================
+# Main Post Creation to WordPress
+# ===============================
 def post_article_to_wp(data):
     title = data["title"]
     content = data["article"]
@@ -70,17 +129,22 @@ def post_article_to_wp(data):
     image_prompt = data.get("image_prompt", "")
     preview_id = data.get("preview_id")
 
+    # Step 1: Generate image & upload
     media_id, image_webp_path = generate_and_upload_image(image_prompt, preview_id)
     if not media_id:
         print("[WARN] Failed to attach featured image")
 
-    # Create the post
+    # Step 2: Resolve tag names → tag IDs
+    tag_names = tags.split(",")
+    tag_ids = resolve_tags(tag_names)
+
+    # Step 3: Create post
     post_payload = {
         "title": title,
         "content": content,
         "status": "publish",
         "categories": category_ids,
-        "tags": [t.strip() for t in tags.split(",")],
+        "tags": tag_ids,
         "featured_media": media_id
     }
 
@@ -96,25 +160,25 @@ def post_article_to_wp(data):
 
         post_id = post_res.json()["id"]
 
-        # Set Yoast meta fields
+        # Optional: Attach SEO meta (Yoast support via custom fields)
         meta_fields = {
-            "yoast_head_json": {
-                "title": seo_title,
-                "description": meta_description
-            },
-            "meta_description": meta_description,
+            "yoast_title": seo_title,
+            "yoast_metadesc": meta_description,
             "focus_keyword": focus_keyword
         }
 
         for key, value in meta_fields.items():
-            meta_response = requests.post(
-                f"{WP_URL}/wp-json/wp/v2/posts/{post_id}/meta",
-                auth=AUTH,
-                json={"key": key, "value": value}
-            )
-            time.sleep(0.2)  # Avoid rate limit
+            try:
+                meta_response = requests.post(
+                    f"{WP_URL}/wp-json/wp/v2/posts/{post_id}/meta",
+                    auth=AUTH,
+                    json={"key": key, "value": value}
+                )
+                time.sleep(0.2)  # Respect API limits
+            except Exception as e:
+                print(f"[ERROR] Setting meta '{key}': {e}")
 
-        # Add image path info
+        # Attach image paths for DB tracking
         data["image_path"] = f"storage/images/{preview_id}.png"
         data["image_webp"] = image_webp_path
 
