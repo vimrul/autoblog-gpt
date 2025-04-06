@@ -101,3 +101,19 @@ def post_to_wp():
 def post_history():
     posts = Post.query.order_by(Post.created_at.desc()).all()
     return render_template("post_history.html", posts=posts)
+
+@main.route("/view_article/<topic>")
+def view_article(topic):
+    import glob
+    import markdown
+
+    files = glob.glob(f"storage/articles/*.json")
+    for f in files:
+        with open(f, "r") as file:
+            import json
+            data = json.load(file)
+            if data.get("topic") == topic:
+                html = markdown.markdown(data["article"])
+                return render_template("preview.html", data=data, rendered_article=html)
+    flash("Article not found.", "error")
+    return redirect(url_for("main.post_history"))
