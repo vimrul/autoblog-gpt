@@ -1,0 +1,8 @@
+{
+    "OPENAI_API_KEY": "sk-...",
+    "OPENAI_MODEL": "gpt-3.5-turbo",
+    "WP_SITE_URL": "https://www.revlox.com",
+    "WP_USERNAME": "imrulvimrul",
+    "WP_APP_PASSWORD": "app-password"
+  }
+  
