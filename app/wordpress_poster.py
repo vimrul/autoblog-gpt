@@ -6,11 +6,13 @@ import openai
 import requests
 from PIL import Image
 from requests.auth import HTTPBasicAuth
+from app.utils.settings import get_settings
 
-# Load WordPress credentials
-WP_URL = os.getenv("WP_SITE_URL")
-WP_USER = os.getenv("WP_USERNAME")
-WP_PASS = os.getenv("WP_APP_PASSWORD")
+# Load settings from settings.json
+settings = get_settings()
+WP_URL = settings.get("WP_SITE_URL")
+WP_USER = settings.get("WP_USERNAME")
+WP_PASS = settings.get("WP_APP_PASSWORD")
 AUTH = HTTPBasicAuth(WP_USER, WP_PASS)
 
 # ==========================
@@ -48,7 +50,7 @@ def resolve_tags(tag_names):
                 auth=AUTH
             )
             if check.status_code == 200 and check.json():
-                tag_ids.append(check.json()[0]['id'])  # tag exists
+                tag_ids.append(check.json()[0]['id'])
             else:
                 create = requests.post(
                     f"{WP_URL}/wp-json/wp/v2/tags",
@@ -78,13 +80,13 @@ def generate_and_upload_image(prompt, preview_id):
         print(f"[ERROR] DALL·E image generation failed: {e}")
         return None, None
 
-    # Save PNG
-    image_bytes = io.BytesIO(base64.b64decode(image_data))
     image_path = f"storage/images/{preview_id}.png"
+    os.makedirs(os.path.dirname(image_path), exist_ok=True)
+
+    image_bytes = io.BytesIO(base64.b64decode(image_data))
     with open(image_path, "wb") as f:
         f.write(image_bytes.getbuffer())
 
-    # Convert to WebP
     image_webp = f"storage/images/{preview_id}.webp"
     try:
         with Image.open(image_path) as img:
@@ -93,7 +95,6 @@ def generate_and_upload_image(prompt, preview_id):
         print(f"[ERROR] WebP conversion failed: {e}")
         image_webp = None
 
-    # Upload PNG to WordPress
     try:
         headers = {
             "Content-Disposition": f"attachment; filename={preview_id}.png",
@@ -119,27 +120,23 @@ def generate_and_upload_image(prompt, preview_id):
 # Main Post Creation to WordPress
 # ===============================
 def post_article_to_wp(data):
-    title = data["title"]
-    content = data["article"]
-    seo_title = data["seo_title"]
-    meta_description = data["meta_description"]
-    focus_keyword = data["focus_keyword"]
-    tags = data["tags"]
+    title = data.get("title") or data.get("catchy_title") or "Untitled"
+    content = data.get("article") or data.get("main_article_body") or ""
+    seo_title = data.get("seo_title") or ""
+    meta_description = data.get("meta_description") or ""
+    focus_keyword = data.get("focus_keyword") or ""
+    tags = data.get("tags", "")
     category_ids = data.get("category_ids", [])
-    image_prompt = data.get("image_prompt", "")
+    image_prompt = data.get("image_prompt") or data.get("suggested_image_prompt") or ""
     preview_id = data.get("preview_id")
-def generate_and_upload_image(image_prompt, preview_id):
-    image_path = f"storage/images/{preview_id}.png"
-    image_webp_path = f"storage/images/{preview_id}.webp"
 
-    os.makedirs(os.path.dirname(image_path), exist_ok=True)
     # Step 1: Generate image & upload
     media_id, image_webp_path = generate_and_upload_image(image_prompt, preview_id)
     if not media_id:
         print("[WARN] Failed to attach featured image")
 
-    # Step 2: Resolve tag names → tag IDs
-    tag_names = tags.split(",")
+    # Step 2: Resolve tag names
+    tag_names = [tag.strip() for tag in tags.split(",") if tag.strip()]
     tag_ids = resolve_tags(tag_names)
 
     # Step 3: Create post
@@ -164,7 +161,7 @@ def generate_and_upload_image(image_prompt, preview_id):
 
         post_id = post_res.json()["id"]
 
-        # Optional: Attach SEO meta (Yoast support via custom fields)
+        # Attach Yoast SEO meta fields
         meta_fields = {
             "yoast_title": seo_title,
             "yoast_metadesc": meta_description,
@@ -178,11 +175,10 @@ def generate_and_upload_image(image_prompt, preview_id):
                     auth=AUTH,
                     json={"key": key, "value": value}
                 )
-                time.sleep(0.2)  # Respect API limits
+                time.sleep(0.2)
             except Exception as e:
                 print(f"[ERROR] Setting meta '{key}': {e}")
 
-        # Attach image paths for DB tracking
         data["image_path"] = f"storage/images/{preview_id}.png"
         data["image_webp"] = image_webp_path
 
