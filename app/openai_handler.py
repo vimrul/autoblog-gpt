@@ -1,11 +1,12 @@
 import openai
 import os
 import json
+import sys
+import re
 
-# Set API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def generate_article(topic, model="gpt-4-1106-preview"):
+def generate_article(topic, model="gpt-4"):
     prompt = f"""
 You are a professional blog writer. Write a long-form SEO-optimized blog article on the topic:
 "{topic}"
@@ -21,21 +22,12 @@ Include:
 - Suggested image prompt for DALL·E (landscape, high quality)
 - Main article body (scannable, human-like)
 
-Respond in JSON format like:
-{{
-"title": "...",
-"seo_title": "...",
-"meta_description": "...",
-"focus_keyword": "...",
-"social_title": "...",
-"social_description": "...",
-"tags": "...",
-"image_prompt": "...",
-"article": "..."
-}}
+Respond ONLY in valid raw JSON. Do not include markdown, triple backticks, or code fencing.
 """
 
     try:
+        print(f"[INFO] Generating article using: {model}", file=sys.stderr)
+
         response = openai.ChatCompletion.create(
             model=model,
             messages=[
@@ -45,15 +37,29 @@ Respond in JSON format like:
             temperature=0.7
         )
 
-        content = response.choices[0].message['content']
-        print("[DEBUG] Raw GPT content:\n", content)  # ✅ Helpful for testing
+        raw = response.choices[0].message['content']
+        print("[DEBUG] Raw GPT content:\n", raw, file=sys.stderr)
 
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] JSON decode failed: {e}")
-            return None
+        # Clean up markdown/code block artifacts
+        raw = raw.strip().lstrip("`json").strip("`").strip()
 
+        # Extract JSON block
+        start, end = raw.find("{"), raw.rfind("}") + 1
+        json_str = raw[start:end]
+
+        parsed = json.loads(json_str)
+
+        # Normalize keys
+        if "article_body" in parsed:
+            parsed["article"] = parsed.pop("article_body")
+        elif "Main_Article_Body" in parsed:
+            parsed["article"] = parsed.pop("Main_Article_Body")
+
+        return parsed
+
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] JSON decode failed: {e}\nContent:\n{raw}", file=sys.stderr)
+        return None
     except Exception as e:
-        print(f"[ERROR] GPT generation failed: {e}")
+        print(f"[ERROR] GPT generation failed: {e}", file=sys.stderr)
         return None

@@ -1,10 +1,13 @@
 import os
 import uuid
 import json
+import glob
+import markdown
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from app.openai_handler import generate_article
 from app.wordpress_poster import fetch_categories, post_article_to_wp
-from app.models import Post
+from app.models import Post, ScheduledPost
 from app.db import db
 
 main = Blueprint("main", __name__)
@@ -50,8 +53,11 @@ def preview():
         **result
     }
 
-    with open(f"storage/articles/{preview_id}.json", "w") as f:
-        json.dump(session_data, f)
+    # Ensure the directory exists
+    os.makedirs("storage/articles", exist_ok=True)
+    file_path = f"storage/articles/{preview_id}.json"
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(session_data, f, indent=2, ensure_ascii=False)
 
     return render_template("preview.html", data=session_data)
 
@@ -67,25 +73,22 @@ def post_to_wp():
         flash("Preview data not found", "error")
         return redirect(url_for("main.home"))
 
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Attach categories to data
     data["category_ids"] = category_ids
 
-    # Post to WP
     wp_post_id = post_article_to_wp(data)
     if not wp_post_id:
         flash("Failed to post to WordPress", "error")
         return redirect(url_for("main.preview", topic=data['topic'], model=data['model'], categories=",".join(map(str, category_ids))))
 
-    # Save to DB
     post = Post(
         topic=data["topic"],
         seo_title=data["seo_title"],
         meta_description=data["meta_description"],
         focus_keyword=data["focus_keyword"],
-        content=data["article"],
+        content=data["article"] if "article" in data else data.get("main_article_body", ""),
         tags=data["tags"],
         image_path=data.get("image_path", ""),
         image_webp=data.get("image_webp", ""),
@@ -97,64 +100,68 @@ def post_to_wp():
     flash(f"✅ Successfully posted to WordPress (Post ID: {wp_post_id})", "success")
     return redirect(url_for("main.home"))
 
+
 @main.route("/history")
 def post_history():
     posts = Post.query.order_by(Post.created_at.desc()).all()
     return render_template("post_history.html", posts=posts)
 
+
 @main.route("/view_article/<topic>")
 def view_article(topic):
-    import glob
-    import markdown
-
-    files = glob.glob(f"storage/articles/*.json")
+    files = glob.glob("storage/articles/*.json")
     for f in files:
-        with open(f, "r") as file:
-            import json
+        with open(f, "r", encoding="utf-8") as file:
             data = json.load(file)
             if data.get("topic") == topic:
-                html = markdown.markdown(data["article"])
+                html = markdown.markdown(data.get("article", ""))
                 return render_template("preview.html", data=data, rendered_article=html)
+
     flash("Article not found.", "error")
     return redirect(url_for("main.post_history"))
 
+
 @main.route("/settings", methods=["GET", "POST"])
 def settings():
-    env_path = ".env"
+    settings_path = "config/settings.json"
     settings = {}
 
     # Load current settings
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                if line.strip() and not line.startswith("#"):
-                    key, value = line.strip().split("=", 1)
-                    settings[key] = value
+    if os.path.exists(settings_path):
+        with open(settings_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
 
     if request.method == "POST":
         updated_keys = ["OPENAI_API_KEY", "OPENAI_MODEL", "WP_SITE_URL", "WP_USERNAME", "WP_APP_PASSWORD"]
-        new_settings = {k: request.form.get(k, "") for k in updated_keys}
+        for key in updated_keys:
+            settings[key] = request.form.get(key, "")
 
-        # Rewrite .env file
-        with open(env_path, "w") as f:
-            for k, v in {**settings, **new_settings}.items():
-                f.write(f"{k}={v.strip()}\n")
+        os.makedirs("config", exist_ok=True)
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
 
-        flash("✅ Settings updated. Restart the app for changes to take effect.", "success")
+        flash("✅ Settings updated successfully!", "success")
         return redirect(url_for("main.settings"))
 
     return render_template("settings.html", settings=settings)
 
-from datetime import datetime
+
 
 @main.route("/schedule", methods=["GET", "POST"])
 def schedule_post():
     categories = fetch_categories()
+
     if request.method == "POST":
         topic = request.form.get("topic")
         model = request.form.get("model", "gpt-4-1106-preview")
         category_ids = request.form.getlist("categories")
         scheduled_time = request.form.get("scheduled_time")
+
+        try:
+            scheduled_datetime = datetime.fromisoformat(scheduled_time)
+        except ValueError:
+            flash("Invalid date format.", "error")
+            return redirect(url_for("main.schedule_post"))
 
         result = generate_article(topic, model)
         if not result:
@@ -170,7 +177,7 @@ def schedule_post():
             tags=result["tags"],
             image_prompt=result["image_prompt"],
             category_ids=",".join(category_ids),
-            scheduled_time=datetime.fromisoformat(scheduled_time)
+            scheduled_time=scheduled_datetime
         )
         db.session.add(post)
         db.session.commit()

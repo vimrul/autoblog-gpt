@@ -128,7 +128,11 @@ def post_article_to_wp(data):
     category_ids = data.get("category_ids", [])
     image_prompt = data.get("image_prompt", "")
     preview_id = data.get("preview_id")
+def generate_and_upload_image(image_prompt, preview_id):
+    image_path = f"storage/images/{preview_id}.png"
+    image_webp_path = f"storage/images/{preview_id}.webp"
 
+    os.makedirs(os.path.dirname(image_path), exist_ok=True)
     # Step 1: Generate image & upload
     media_id, image_webp_path = generate_and_upload_image(image_prompt, preview_id)
     if not media_id:

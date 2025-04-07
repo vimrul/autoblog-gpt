@@ -1,6 +1,6 @@
 flask
 requests
-openai
+openai==0.28
 psycopg2-binary
 python-dotenv
 Pillow
@@ -8,3 +8,5 @@ sqlalchemy
 flask_sqlalchemy
 flask_migrate
 gunicorn
+markdown
+
