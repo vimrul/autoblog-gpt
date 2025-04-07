@@ -184,6 +184,8 @@ def post_article_to_wp(data):
         "tags": tag_ids,
         "featured_media": media_id
     }
+    print("[DEBUG] Payload being sent to WordPress:")
+    print(post_payload)
 
     try:
         post_res = requests.post(
@@ -191,6 +193,8 @@ def post_article_to_wp(data):
             json=post_payload,
             auth=AUTH
         )
+        print(f"[DEBUG] WordPress Response Code: {post_res.status_code}")
+        print(f"[DEBUG] WordPress Response Body: {post_res.text}")
         if post_res.status_code not in [200, 201]:
             print(f"[ERROR] Failed to post article: {post_res.text}")
             return None
