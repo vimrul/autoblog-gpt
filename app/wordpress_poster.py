@@ -1,5 +1,6 @@
 import os
 import io
+import json
 import base64
 import time
 import openai
@@ -184,23 +185,25 @@ def post_article_to_wp(data):
         "tags": tag_ids,
         "featured_media": media_id
     }
-    print("[DEBUG] Payload being sent to WordPress:")
-    print(post_payload)
 
     try:
+        print("[DEBUG] Payload being sent to WordPress:")
+        print(json.dumps(post_payload, indent=2))
+
         post_res = requests.post(
             f"{WP_URL}/wp-json/wp/v2/posts",
             json=post_payload,
             auth=AUTH
         )
+
         print(f"[DEBUG] WordPress Response Code: {post_res.status_code}")
-        print(f"[DEBUG] WordPress Response Body: {post_res.text}")
+        print(f"[DEBUG] WordPress Response Body:\n{post_res.text}")
+
         if post_res.status_code not in [200, 201]:
             print(f"[ERROR] Failed to post article: {post_res.text}")
             return None
 
         post_id = post_res.json()["id"]
-        print(f"[SUCCESS] Article posted with ID: {post_id}")
 
         # Attach SEO meta
         meta_fields = {
